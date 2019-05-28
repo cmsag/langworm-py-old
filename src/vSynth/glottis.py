@@ -39,7 +39,16 @@ class Glottis:
         self.marks = [0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
         self.baseNote = 87.3071
 
+        # Defined by the setup_waveform function
         self.waveformLength = None
+        self.Te = None
+        self.epsilon = None
+        self.shift = None
+        self.delta = None
+        self.E_zero = None
+        self.alpha = None
+        self.omega = None
+        # ---------------------------------------
 
     def run_step(self, L, noise_source):
 
@@ -101,20 +110,20 @@ class Glottis:
 
         Ta = Ra
         Tp = 1 / (2 * Rg)
-        Te = Tp + Tp * Rk
+        self.Te = Tp + Tp * Rk
 
-        epsilon = 1 / Ta
-        shift = numpy.exp(-epsilon * (1 - Te))
-        delta = 1 - shift # Divide by this to scale RHS
+        self.epsilon = 1 / Ta
+        self.shift = numpy.exp(-self.epsilon * (1 - self.Te))
+        self.delta = 1 - self.shift # Divide by this to scale RHS
 
-        RHSintegral = (1 / epsilon) * (shift - 1) + (1 - Te) * shift
-        RHSintegral = RHSintegral / delta
+        RHSintegral = (1 / self.epsilon) * (self.shift - 1) + (1 - self.Te) * self.shift
+        RHSintegral = RHSintegral / self.delta
 
-        total_lower_integral = - (Te - Tp) / 2 + RHSintegral
+        total_lower_integral = - (self.Te - Tp) / 2 + RHSintegral
         total_upper_integral = -total_lower_integral
 
         omega = math.pi / Tp
-        s = math.sin(omega * Te)
+        s = math.sin(self.omega * self.Te)
 
         # need E0 * e ^ (alpha * Te) * s = -1(to meet the return at - 1)
         # and E0 * e ^ (alpha * Tp / 2) * Tp * 2 / pi = totalUpperIntegral
@@ -127,10 +136,13 @@ class Glottis:
 
         y = -math.pi * s * total_upper_integral / (Tp * 2)
         z = math.log(y)
-        alpha = z / (Tp / 2 - Te)
-        E_zero = -1 / (s * numpy.exp(alpha * Te))
-        # Might need to define all these in __init__ and then make the above references to self
+        self.alpha = z / (Tp / 2 - self.Te)
+        self.E_zero = -1 / (s * numpy.exp(self.alpha * self.Te))
 
-        # ...
-        # Function WiP
-        # ...
+    def normalised_waveform(self, t):
+        if t > self.Te:
+            output = (-numpy.exp(-self.epsilon * (t - self.Te)) + self.shift)/self.delta
+        else:
+            output = self.E_zero * numpy.exp(self.alpha * t) * math.sin(self.omega * t)
+
+        return output * self.intensity * self.loudness
