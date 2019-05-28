@@ -1,4 +1,5 @@
 import math
+import numpy
 # opensimplex is a noise generator for Python that can generate 2D simplex noise
 import opensimplex
 
@@ -6,6 +7,9 @@ import opensimplex
 # Based on the simplex1 function from Pink Trombone
 def simplex_1_noise(x):
     return opensimplex.noise2d(x * 1.2, -x * 0.7)
+
+def clamp(x, minval, maxval):
+    return max(minval, min(x, maxval))
 
 
 class Glottis:
@@ -64,17 +68,69 @@ class Glottis:
         # if autowobble == True:
         #    vibrato = vibrato + 0.02 * simplex_1_noise(self.totalTime * 0.98)
         #    vibrato = vibrato + 0.04 * simplex_1_noise(self.totalTime * 0.5)
-        
-        # ...
-        # Function WiP
-        # ...
+        if self.UIFrequency > self.smoothFrequency:
+            self.smoothFrequency = min(self.smoothFrequency * 1.1, self.UIFrequency)
+        if self.UIFrequency < self.smoothFrequency:
+            self.smoothFrequency = max(self.smoothFrequency / 1.1, self.UIFrequency)
+        self.oldFrequency = self.newFrequency
+        self.newFrequency = self.smoothFrequency * (1 + vibrato)
+        self.oldTenseness = self.newTenseness
+        self.newTenseness = self.UITenseness + 0.1 * simplex_1_noise(self.totalTime * 0.46) + 0.05 * simplex_1_noise(self.totalTime * 0.36)
+        # UI functionality for changing values with mouse removed for now
+        # if not self.isTouched and always_voice == True:
+        #    self.newTenseness = self.newTenseness + (3 - self.UITenseness) * (1 - self.intensity)
+        # if self.isTouched and always_voice == False:
+        #    self.intensity = self.intensity + 0.13
+        # else:
+        #   self.intensity = self.intensity - 0.05
+        self.intensity = self.intensity - 0.05
 
     def setup_waveform(self, L):
-
+        # using "L" instead of lambda to accommodate for Python
         frequency = self.oldFrequency * (1 - L) + self.newFrequency * L
         tenseness = self.oldTenseness * (1 - L) + self.newTenseness * L
         Rd = 3 * (1 - tenseness)
         self.waveformLength = 1.0 / frequency
+
+        clamp(Rd, 0.5, 2.7)
+
+        # Normalised to time = 1, Ee = 1
+        Ra = -0.01 + 0.048 * Rd
+        Rk = 0.224 + 0.118 * Rd
+        Rg = (Rk / 4) * (0.5 + 1.2 * Rk) / (0.11 * Rd - Ra *(0.5 + 1.2 * Rk))
+
+        Ta = Ra
+        Tp = 1 / (2 * Rg)
+        Te = Tp + Tp * Rk
+
+        epsilon = 1 / Ta
+        shift = numpy.exp(-epsilon * (1 - Te))
+        delta = 1 - shift # Divide by this to scale RHS
+
+        RHSintegral = (1 / epsilon) * (shift - 1) + (1 - Te) * shift
+        RHSintegral = RHSintegral / delta
+
+        total_lower_integral = - (Te - Tp) / 2 + RHSintegral
+        total_upper_integral = -total_lower_integral
+
+        omega = math.pi / Tp
+        s = math.sin(omega * Te)
+
+        # need E0 * e ^ (alpha * Te) * s = -1(to meet the return at - 1)
+        # and E0 * e ^ (alpha * Tp / 2) * Tp * 2 / pi = totalUpperIntegral
+                                                         # (our approximation of the integral up to Tp)
+                                                         # writing x for e ^ alpha,
+        # have E0 * x ^ Te * s = -1 and E0 * x ^ (Tp / 2) * Tp * 2 / pi = totalUpperIntegral
+        # dividing the second by the first,
+        # letting y = x ^ (Tp / 2 - Te),
+        # y * Tp * 2 / (pi * s) = -totalUpperIntegral;
+
+        y = -math.pi * s * total_upper_integral / (Tp * 2)
+        z = math.log(y)
+        alpha = z / (Tp / 2 - Te)
+        E_zero = -1 / (s * numpy.exp(alpha * Te))
+        # Might need to define all these in __init__ and then make the above references to self
+
         # ...
         # Function WiP
         # ...
