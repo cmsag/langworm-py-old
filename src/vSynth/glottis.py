@@ -5,6 +5,7 @@ import opensimplex
 
 
 # Based on the simplex1 function from Pink Trombone
+# Generate 1D simplex noise
 def simplex_1_noise(x):
     return opensimplex.noise2d(x * 1.2, -x * 0.7)
 
@@ -122,7 +123,7 @@ class Glottis:
         total_lower_integral = - (self.Te - Tp) / 2 + RHSintegral
         total_upper_integral = -total_lower_integral
 
-        omega = math.pi / Tp
+        self.omega = math.pi / Tp
         s = math.sin(self.omega * self.Te)
 
         # need E0 * e ^ (alpha * Te) * s = -1(to meet the return at - 1)
