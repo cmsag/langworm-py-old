@@ -1,0 +1,8 @@
+GamaTTS.
+https://mym.eng.br/gama_tts.html
+
+Qt5 & qmake-qt5 for GamaTTS
+
+
+GNUspeech
+http://www.gnu.org/software/gnuspeech/
